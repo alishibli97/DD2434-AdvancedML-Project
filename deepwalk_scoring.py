@@ -10,6 +10,10 @@ from scipy.io import loadmat
 from sklearn.utils import shuffle as skshuffle
 from sklearn.preprocessing import MultiLabelBinarizer
 import networkx as nx
+import csv
+import numpy as np
+from scipy.sparse import csr_matrix
+from graph import *
 
 class TopKRanker(OneVsRestClassifier):
     def predict(self, X, top_k_list):
@@ -29,26 +33,146 @@ def to_graph(x):
         G.add_edge(*(i, j))
     return G
 
-def main():
-    # 0. Files
+def get_graph_csv(file):
+    G = nx.Graph()
+    with open(file, newline='', ) as f:
+        reader = csv.reader(f)
+        next(reader)
+        for row in reader:
+            G.add_edge(*(row[0], row[1]))
+    return G
+
+def get_graph_csv2(file, undirected=True):
+    G = Graph()
+
+    with open(file, newline='', ) as f:
+        reader = csv.reader(f)
+        next(reader)
+        for row in reader:
+            G[row[0]].append(row[1])
+
+    if undirected:
+        G.make_undirected()
+
+    G.make_consistent()
+    return G
+
+
+
+def lastfm():
+    embeddings = 'lastfm' + '.embeddings'
+    csv_network = 'data/lastfm_asia_edges.csv'
+    G = get_graph_csv(csv_network)
+    csv_labels = 'data/lastfm_asia_target.csv'
+    rows = []
+    cols = []
+    with open(csv_labels, newline='', ) as f:
+        reader = csv.reader(f)
+        next(reader)
+        for row in reader:
+            rows.append(int(row[0]))
+            cols.append(int(row[1]))
+    data = [1.0 for i in rows]
+    labels_matrix = csr_matrix((data, (rows, cols)))
+    return embeddings, G, labels_matrix
+
+def cora():
+    embeddings = 'cora.embeddings'
+    csv_network = 'data/cora/cora_edges.csv'
+    G = get_graph_csv(csv_network)
+    csv_labels = 'data/cora/cora_labels.csv'
+    rows = []
+    cols = []
+    with open(csv_labels, newline='', ) as f:
+        reader = csv.reader(f)
+        for row in reader:
+            rows.append(int(row[0]))
+            cols.append(int(row[1]))
+    data = [1.0 for i in rows]
+    labels_matrix = csr_matrix((data, (rows, cols)))
+    return embeddings, G, labels_matrix
+
+def pubmed():
+    embeddings = 'pubmed' + '.embeddings'
+    csv_network = 'data/pubmed/pubmed_edges.csv'
+    # G = get_graph_csv2(csv_network, False)
+    G = get_graph_csv(csv_network)
+    csv_labels = 'data/pubmed/pubmed_labels.csv'
+    rows = []
+    cols = []
+    with open(csv_labels, newline='', ) as f:
+        reader = csv.reader(f)
+        for row in reader:
+            rows.append(int(row[0]))
+            cols.append(int(row[1]))
+    data = [1.0 for i in rows]
+    labels_matrix = csr_matrix((data, (rows, cols)))
+    return embeddings, G, labels_matrix
+
+def blogcatalog():
+    name_d = 'blogcatalog'
+    embeddings_file = name_d+'.embeddings'
+    matfile = 'data/'+name_d+'.mat'
+    mat = loadmat(matfile)
+    A = mat['network']
+    graph = to_graph(A)
+    labels_matrix = mat['group']
+    return embeddings_file, graph, labels_matrix
+
+def pos():
+    name_d = 'POS'
+    embeddings_file = name_d+'.embeddings'
+    matfile = 'data/'+name_d+'.mat'
+    mat = loadmat(matfile)
+    A = mat['network']
+    graph = to_graph(A)
+    labels_matrix = mat['group']
+    return embeddings_file, graph, labels_matrix
+
+def sapiens():
+    name_d = 'Homo_sapiens'
+    embeddings_file = name_d+'.embeddings'
+    matfile = 'data/'+name_d+'.mat'
+    mat = loadmat(matfile)
+    A = mat['network']
+    graph = to_graph(A)
+    labels_matrix = mat['group']
+    return embeddings_file, graph, labels_matrix
+
+def flickr():
     name_d = 'flickr'
     embeddings_file = name_d+'.embeddings'
     matfile = 'data/'+name_d+'.mat'
+    mat = loadmat(matfile)
+    A = mat['network']
+    graph = to_graph(A)
+    labels_matrix = mat['group']
+    return embeddings_file, graph, labels_matrix
+
+def main():
     all = False
+    embeddings_file, graph, labels_matrix = flickr()
 
     # 1. Load Embeddings
     model = KeyedVectors.load_word2vec_format(embeddings_file, binary=False)
 
     # 2. Load labels
-    mat = loadmat(matfile)
-    A = mat['network']
-    graph = to_graph(A)
-    labels_matrix = mat['group']
+
     labels_count = labels_matrix.shape[1]
     mlb = MultiLabelBinarizer(range(labels_count))
 
     # Map nodes to their features (note:  assumes nodes are labeled as integers 1:N)
     features_matrix = numpy.asarray([model[str(node)] for node in range(len(graph))])
+    # features = []
+    # nodes = []
+    # for node in range(len(graph)):
+    #     if str(node) in model:
+    #         nodes.append(str(node))
+    #         features.append(model[str(node)])
+    #     else:
+    #         # pass
+    #         features.append(model['0'])
+    # features_matrix = numpy.asarray(features)
 
     # 2. Shuffle, to create train/test groups
     shuffles = []
@@ -61,8 +185,8 @@ def main():
     if all:
         training_percents = numpy.asarray(range(1, 10)) * .1
     else:
-        training_percents = [0.1, 0.5, 0.9]
-        # training_percents = [0.5]
+        # training_percents = [0.1, 0.5, 0.9]
+        training_percents = [0.1]
     for train_percent in training_percents:
         for shuf in shuffles:
 
@@ -72,7 +196,6 @@ def main():
 
             X_train = X[:training_size, :]
             y_train_ = y[:training_size]
-
             y_train = [[] for x in range(y_train_.shape[0])]
 
             cy = y_train_.tocoo()
