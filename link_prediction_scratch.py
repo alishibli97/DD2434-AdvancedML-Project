@@ -1,7 +1,9 @@
+'''
+    By Carlos Lago Solas - clago@kth.se
+'''
 from scipy.io import loadmat
 import random
-from gensim.models import KeyedVectors, Word2Vec
-from graph import *
+from gensim.models import KeyedVectors
 from sklearn.metrics import roc_auc_score
 from sklearn.linear_model import LogisticRegression
 import numpy as np
@@ -30,7 +32,7 @@ def undirected_n_edge(edges, n_nodes):
 
 def mat_dataset(name='blogcatalog'):
     dataset = 'data/' + name + '.mat'
-    embeddings_file = name + '.embeddings'
+    embeddings_file = name + '2.embeddings'
     nodes1 = []
     nodes2 = []
     all_nodes = {}
@@ -78,9 +80,9 @@ def csv_dataset(name):
 
 
 
-nodes1, nodes2, edges, all_nodes, embeddings_file = mat_dataset('POS')
-# nodes1, nodes2, edges, all_nodes, embeddings_file = csv_dataset('pubmed')
-directed = False
+# nodes1, nodes2, edges, all_nodes, embeddings_file = mat_dataset('blogcatalog')
+nodes1, nodes2, edges, all_nodes, embeddings_file = csv_dataset('pubmed')
+directed = True
 prob = 0
 model = KeyedVectors.load_word2vec_format(embeddings_file, binary=False)
 

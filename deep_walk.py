@@ -1,3 +1,6 @@
+'''
+    By Carlos Lago Solas - clago@kth.se
+'''
 import random
 from gensim.models import Word2Vec
 from graph import *
@@ -5,20 +8,20 @@ import pandas as pd
 import networkx as nx
 import csv
 
-
-def get_graph_csv(file, undirected=True):
-    G = Graph()
-
+def get_graph_csv(file):
+    G = nx.Graph()
     with open(file, newline='', ) as f:
         reader = csv.reader(f)
         next(reader)
         for row in reader:
-            G[row[0]].append(row[1])
+            G.add_edge(*(row[0], row[1]))
+    return G
 
-    if undirected:
-        G.make_undirected()
-
-    G.make_consistent()
+def to_graph(x):
+    G = nx.Graph()
+    cx = x.tocoo()
+    for i,j,v in zip(cx.row, cx.col, cx.data):
+        G.add_edge(*(i, j))
     return G
 
 def lastfm():
@@ -30,13 +33,19 @@ def lastfm():
 def blogcatalog():
     name_d = 'blogcatalog'
     dataset = 'data/'+name_d+'.mat'
-    G = load_matfile(dataset)
+    # G = load_matfile(dataset)
+    mat = loadmat(dataset)
+    A = mat['network']
+    G = to_graph(A)
     return G, name_d
 
 def pos():
     name_d = 'POS'
     dataset = 'data/'+name_d+'.mat'
-    G = load_matfile(dataset)
+    # G = load_matfile(dataset)
+    mat = loadmat(dataset)
+    A = mat['network']
+    G = to_graph(A)
     return G, name_d
 
 def sapiens():
@@ -63,9 +72,17 @@ def cora():
     G = get_graph_csv(csv_network)
     return G, name_d
 
-# G = lastfm()
-# G = blogcatalog()
-# G = flickr()
+
+def get_random_walk(graph, node, steps):
+    path = [str(node), ]
+    next_node = node
+    for _ in range(steps):
+        neighbors = list(nx.all_neighbors(graph, next_node))
+        next_node = random.choice(neighbors)
+        path.append(str(next_node))
+    return path
+
+
 G, name_d = pubmed()
 
 
@@ -77,10 +94,12 @@ worker_threads = 32
 embedding_dim = 128
 seed = 42
 
-walks = build_deepwalk_corpus(G, num_paths=r, path_length=t, alpha=0, rand=random.Random(seed))
+walks = []
+for node in G.nodes():
+    for _ in range(r):
+        walks.append(get_random_walk(G, node, t-1))
 
 embedder = Word2Vec(walks, window=w, sg=1, hs=1, negative=ns,
                     seed=42, size=embedding_dim, workers=worker_threads, min_count=0)
 
 embedder.wv.save_word2vec_format(name_d+'.embeddings')
-# embedder.wv.save_word2vec_format('pubmed.embeddings')

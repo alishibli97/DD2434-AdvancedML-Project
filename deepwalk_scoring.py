@@ -1,3 +1,7 @@
+'''
+    By Carlos Lago Solas - clago@kth.se
+    Adapted from https://github.com/phanein/deepwalk
+'''
 import numpy
 import sys
 from collections import defaultdict
@@ -42,23 +46,6 @@ def get_graph_csv(file):
             G.add_edge(*(row[0], row[1]))
     return G
 
-def get_graph_csv2(file, undirected=True):
-    G = Graph()
-
-    with open(file, newline='', ) as f:
-        reader = csv.reader(f)
-        next(reader)
-        for row in reader:
-            G[row[0]].append(row[1])
-
-    if undirected:
-        G.make_undirected()
-
-    G.make_consistent()
-    return G
-
-
-
 def lastfm():
     embeddings = 'lastfm' + '.embeddings'
     csv_network = 'data/lastfm_asia_edges.csv'
@@ -95,7 +82,6 @@ def cora():
 def pubmed():
     embeddings = 'pubmed' + '.embeddings'
     csv_network = 'data/pubmed/pubmed_edges.csv'
-    # G = get_graph_csv2(csv_network, False)
     G = get_graph_csv(csv_network)
     csv_labels = 'data/pubmed/pubmed_labels.csv'
     rows = []
@@ -151,7 +137,7 @@ def flickr():
 
 def main():
     all = False
-    embeddings_file, graph, labels_matrix = flickr()
+    embeddings_file, graph, labels_matrix = pubmed()
 
     # 1. Load Embeddings
     model = KeyedVectors.load_word2vec_format(embeddings_file, binary=False)
@@ -163,16 +149,6 @@ def main():
 
     # Map nodes to their features (note:  assumes nodes are labeled as integers 1:N)
     features_matrix = numpy.asarray([model[str(node)] for node in range(len(graph))])
-    # features = []
-    # nodes = []
-    # for node in range(len(graph)):
-    #     if str(node) in model:
-    #         nodes.append(str(node))
-    #         features.append(model[str(node)])
-    #     else:
-    #         # pass
-    #         features.append(model['0'])
-    # features_matrix = numpy.asarray(features)
 
     # 2. Shuffle, to create train/test groups
     shuffles = []
@@ -185,8 +161,8 @@ def main():
     if all:
         training_percents = numpy.asarray(range(1, 10)) * .1
     else:
-        # training_percents = [0.1, 0.5, 0.9]
-        training_percents = [0.1]
+        training_percents = [0.1, 0.5, 0.9]
+        # training_percents = [0.1]
     for train_percent in training_percents:
         for shuf in shuffles:
 
@@ -220,10 +196,6 @@ def main():
             top_k_list = [len(l) for l in y_test]
             preds = clf.predict(X_test, top_k_list)
 
-            # y = y_train+y_test
-            # top_k_list = [len(l) for l in y]
-            # pred_t = clf.predict(X, top_k_list)
-            # print(accuracy_score(mlb.fit_transform(y), mlb.fit_transform(pred_t)))
             results = {}
             averages = ["micro", "macro"]
             for average in averages:
