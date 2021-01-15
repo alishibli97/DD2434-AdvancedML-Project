@@ -84,9 +84,7 @@ class Cora(Dataset):
         self.labels = labels
         self.adj = adj.tolil()
         
-        # print(self.labels.shape)
-        print(self.features.shape)
-        # print(len(self.adj))
+        # print(type(self.adj))
 
     def __len__(self):
         return len(self.idx[self.mode])
@@ -242,41 +240,15 @@ class Blogcatalog(Dataset):
         self.adj = A.toarray()
 
         label = data['group'].todense().astype(np.int)
-        label = np.array(label)
-        self.labels = label
+        # label = np.array(label)
+        self.labels = np.array([np.where(r==1)[0][0] for r in label])
+        
+        print(self.labels.shape)
 
         self.features = self.adj.sum(axis=1).reshape(len(self.adj),1)
-        print(self.features.shape)
 
-        # features = content[idx, 1:-1].astype(np.float32)
-        # # print(features)
-        # labels = content[idx, -1]
-        
-        # d = {j : i for (i,j) in enumerate(sorted(set(labels)))}
-        # labels = np.array([d[l] for l in labels])
+        self.adj = scipy.sparse.lil_matrix(self.adj)
 
-        # vertices = np.array(content[idx, 0], dtype=np.int64)
-        # d = {j : i for (i,j) in enumerate(vertices)}
-        # edges = np.array([e for e in citations if e[0] in d.keys() and e[1] in d.keys()])
-        # edges = np.array([d[v] for v in edges.flatten()]).reshape(edges.shape)
-        # n, m = labels.shape[0], edges.shape[0]
-        # u, v = edges[:, 0], edges[:, 1]
-        # adj = sp.coo_matrix((np.ones(m), (u, v)),
-        #                     shape=(n, n),
-        #                     dtype=np.float32)
-        # adj += adj.T.multiply(adj.T > adj) - adj.multiply(adj.T > adj)
-        # if self_loop:
-        #     adj += sp.eye(n)
-        # if normalize_adj:
-        #     degrees = np.power(np.array(np.sum(adj, axis=1)), -0.5).flatten()
-        #     degrees = sp.diags(degrees)
-        #     adj = (degrees.dot(adj.dot(degrees)))
-        # print('Finished setting up data structures.')
-        # print('--------------------------------')
-
-        # self.features = features
-        # self.labels = labels
-        # self.adj = adj.tolil()
 
     def __len__(self):
         return len(self.idx[self.mode])
@@ -336,7 +308,11 @@ class Blogcatalog(Dataset):
         -------
         dimension of input features, dimension of output features
         """
-        return self.features.shape[1], len(set(self.labels))
+
+        unique_rows = np.unique(self.labels, axis=0)
+
+        return self.features.shape[1], len(unique_rows)
+        # return self.features.shape[1], len(set(self.labels))
 
     def _form_computation_graph(self, idx):
         """
